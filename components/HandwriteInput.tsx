@@ -68,33 +68,38 @@ function boundingBox(points: Point[]) {
 
 function scaleToSquare(points: Point[], size: number = 250, keepRatio = true): Point[] {
   const box = boundingBox(points);
+  const denom = keepRatio ? Math.max(box.width, box.height) || 1 : (box.width || 1);
   const scaled = points.map((p) => ({
-    x: (p.x - box.x) * (size / (keepRatio ? Math.max(box.width, box.height) || 1 : box.width || 1)),
-    y: (p.y - box.y) * (size / (keepRatio ? Math.max(box.width, box.height) || 1 : box.height || 1)),
+    x: (p.x - box.x) * (size / denom),
+    y: (p.y - box.y) * (size / (keepRatio ? denom : (box.height || 1))),
   }));
   const c = centroid(scaled);
   return scaled.map((p) => ({ x: p.x - c.x, y: p.y - c.y }));
 }
 
 function resample(points: Point[], n: number = 64): Point[] {
-  const I = pathLength(points) / (n - 1);
+  const pts = points.slice();
+  const I = pathLength(pts) / (n - 1);
   let D = 0;
-  const newPoints: Point[] = [points[0]];
-  for (let i = 1; i < points.length; i++) {
-    const d = distance(points[i - 1], points[i]);
-    if ((D + d) >= I) {
+  const newPoints: Point[] = [pts[0]];
+  let i = 1;
+  while (i < pts.length) {
+    const d = distance(pts[i - 1], pts[i]);
+    if (D + d >= I) {
       const t = (I - D) / d;
-      const nx = points[i - 1].x + t * (points[i].x - points[i - 1].x);
-      const ny = points[i - 1].y + t * (points[i].y - points[i - 1].y);
+      const nx = pts[i - 1].x + t * (pts[i].x - pts[i - 1].x);
+      const ny = pts[i - 1].y + t * (pts[i].y - pts[i - 1].y);
       const q = { x: nx, y: ny };
       newPoints.push(q);
-      points.splice(i, 0, q);
+      pts.splice(i, 0, q);
       D = 0;
+      i++;
     } else {
       D += d;
+      i++;
     }
   }
-  if (newPoints.length === n - 1) newPoints.push(points[points.length - 1]);
+  if (newPoints.length < n) newPoints.push(pts[pts.length - 1]);
   return newPoints.slice(0, n);
 }
 
@@ -104,8 +109,27 @@ function pathDistance(a: Point[], b: Point[]): number {
   return d / a.length;
 }
 
+function smooth(points: Point[], window: number = 3): Point[] {
+  if (points.length <= window) return points;
+  const half = Math.floor(window / 2);
+  const out: Point[] = [];
+  for (let i = 0; i < points.length; i++) {
+    let sx = 0, sy = 0, c = 0;
+    for (let j = i - half; j <= i + half; j++) {
+      const k = Math.max(0, Math.min(points.length - 1, j));
+      sx += points[k].x; sy += points[k].y; c++;
+    }
+    out.push({ x: sx / c, y: sy / c });
+  }
+  return out;
+}
+
 function normalize(points: Point[]): Point[] {
-  let pts = resample(points.map((p) => ({ x: p.x, y: p.y })), 64);
+  let pts = points.map((p) => ({ x: p.x, y: p.y }));
+  const box = boundingBox(pts);
+  if (box.width < 5 && box.height < 5) return pts;
+  pts = smooth(pts, 3);
+  pts = resample(pts, 64);
   const angle = indicativeAngle(pts);
   pts = rotateBy(pts, -angle);
   pts = scaleToSquare(pts, 200, true);
@@ -157,12 +181,13 @@ function buildDigitTemplates(): Template[] {
 
 function recognizeDigit(rawPoints: Point[], templates: Template[]): { digit: string; score: number } {
   const pts = normalize(rawPoints);
+  if (pts.length === 0) return { digit: "", score: -Infinity };
   let bestScore = -Infinity;
   let best = "";
   const diagonal = Math.hypot(200, 200);
   for (const t of templates) {
     const d = pathDistance(pts, t.points);
-    const score = 1 - d / (0.5 * diagonal);
+    const score = 1 - d / (0.35 * diagonal);
     if (score > bestScore) {
       bestScore = score;
       best = t.name;
@@ -179,6 +204,8 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
   const [isCalibrating, setIsCalibrating] = useState<boolean>(false);
   const [calibDigitIdx, setCalibDigitIdx] = useState<number>(0);
   const [calibSampleCount, setCalibSampleCount] = useState<number>(0);
+  const calibDigitIdxRef = useRef<number>(0);
+  const calibSampleCountRef = useRef<number>(0);
   const digits: string[] = useMemo(() => ["0","1","2","3","4","5","6","7","8","9"], []);
 
   const baseTemplates = useMemo(() => buildDigitTemplates(), []);
@@ -188,6 +215,8 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
   const pointsRef = useRef<Point[]>(points);
   useEffect(() => { valueRef.current = value; }, [value]);
   useEffect(() => { pointsRef.current = points; }, [points]);
+  useEffect(() => { calibDigitIdxRef.current = calibDigitIdx; }, [calibDigitIdx]);
+  useEffect(() => { calibSampleCountRef.current = calibSampleCount; }, [calibSampleCount]);
 
   useEffect(() => {
     (async () => {
@@ -214,32 +243,37 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
 
   const commitCalibrationSample = async () => {
     if (pointsRef.current.length < 8) return;
-    const digit = digits[calibDigitIdx] ?? "";
+    const digit = digits[calibDigitIdxRef.current] ?? "";
     if (!digit) return;
     const norm = normalize(pointsRef.current);
     const tpl: Template = { name: digit, points: norm };
-    setUserTemplates((prev) => [...prev, tpl]);
+    console.log("calibration: saving sample", { digit, sample: calibSampleCountRef.current + 1 });
+    setUserTemplates((prev) => {
+      const updated = [...prev, tpl];
+      AsyncStorage.setItem(USER_TEMPLATES_KEY, JSON.stringify(updated)).catch((e) => console.log("calibration save error", e));
+      return updated;
+    });
     setPaths([]);
     setPoints([]);
-    const nextSample = calibSampleCount + 1;
+
     const neededPerDigit = 2;
+    const nextSample = calibSampleCountRef.current + 1;
     if (nextSample >= neededPerDigit) {
-      const nextDigit = calibDigitIdx + 1;
+      const nextDigit = calibDigitIdxRef.current + 1;
       setCalibSampleCount(0);
+      calibSampleCountRef.current = 0;
       if (nextDigit >= digits.length) {
+        console.log("calibration: completed");
         setIsCalibrating(false);
         onCalibrationChange?.(false);
-        try {
-          const toStore = [...userTemplates, tpl];
-          await AsyncStorage.setItem(USER_TEMPLATES_KEY, JSON.stringify(toStore));
-        } catch (e) {
-          console.log("calibration save error", e);
-        }
       } else {
+        console.log("calibration: next digit", digits[nextDigit]);
         setCalibDigitIdx(nextDigit);
+        calibDigitIdxRef.current = nextDigit;
       }
     } else {
       setCalibSampleCount(nextSample);
+      calibSampleCountRef.current = nextSample;
     }
   };
 
@@ -254,9 +288,12 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
 
       let nextValue = valueRef.current;
       const pts = pointsRef.current;
-      if (pts.length >= 8) {
+      const box = boundingBox(pts);
+      const tooSmall = (box.width < 6 && box.height < 6) || pts.length < 8;
+      if (!tooSmall) {
         const { digit, score } = recognizeDigit(pts, templates);
-        if (digit && score > 0.6) {
+        console.log("recognizeDigit:", { digit, score });
+        if (digit && score > 0.35) {
           nextValue = valueRef.current + digit;
           onChangeText(nextValue);
         }
@@ -326,6 +363,8 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
     onCalibrationChange?.(calibrationMode);
     setCalibDigitIdx(0);
     setCalibSampleCount(0);
+    calibDigitIdxRef.current = 0;
+    calibSampleCountRef.current = 0;
     setPaths([]);
     setPoints([]);
   };
