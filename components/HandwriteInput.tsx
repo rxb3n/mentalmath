@@ -8,6 +8,9 @@ interface Props {
   value: string;
   onChangeText: (text: string) => void;
   onSubmit: () => void;
+  onCalibrationChange?: (isCalibrating: boolean) => void;
+  onFirstInput?: () => void;
+  renderCalibrationOverlay?: boolean;
 }
 
 type Point = { x: number; y: number };
@@ -173,7 +176,7 @@ function recognizeDigit(rawPoints: Point[], templates: Template[]): { digit: str
   return { digit: best, score: bestScore };
 }
 
-export default function HandwriteInput({ size, value, onChangeText, onSubmit }: Props) {
+export default function HandwriteInput({ size, value, onChangeText, onSubmit, onCalibrationChange, onFirstInput, renderCalibrationOverlay = true }: Props) {
   const [paths, setPaths] = useState<string[]>([]);
   const [points, setPoints] = useState<Point[]>([]);
   const recognizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -226,6 +229,7 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit }: 
       setCalibSampleCount(0);
       if (nextDigit >= digits.length) {
         setIsCalibrating(false);
+        onCalibrationChange?.(false);
         try {
           const toStore = [...userTemplates, tpl];
           await AsyncStorage.setItem(USER_TEMPLATES_KEY, JSON.stringify(toStore));
@@ -286,6 +290,7 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit }: 
       onPanResponderGrant: (evt) => {
         if (!hasStartedRef.current) {
           hasStartedRef.current = true;
+          onFirstInput?.();
           console.log("handwrite: start detecting input");
         }
         const { locationX, locationY } = evt.nativeEvent;
@@ -327,6 +332,7 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit }: 
     } catch {}
     setUserTemplates([]);
     setIsCalibrating(true);
+    onCalibrationChange?.(true);
     setCalibDigitIdx(0);
     setCalibSampleCount(0);
     setPaths([]);
@@ -346,7 +352,7 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit }: 
             <Path key={i} d={d} stroke="#111" strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
           ))}
         </Svg>
-        {isCalibrating && (
+        {isCalibrating && renderCalibrationOverlay && (
           <View style={styles.calibOverlay} pointerEvents="none" testID="calibration-overlay">
             <Text style={styles.calibTitle}>Calibration</Text>
             <Text style={styles.calibText}>Draw the digit</Text>
