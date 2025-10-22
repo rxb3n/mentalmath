@@ -202,6 +202,7 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
   const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [userTemplates, setUserTemplates] = useState<Template[]>([]);
   const [isCalibrating, setIsCalibrating] = useState<boolean>(false);
+  const isCalibratingRef = useRef<boolean>(false);
   const [calibDigitIdx, setCalibDigitIdx] = useState<number>(0);
   const [calibSampleCount, setCalibSampleCount] = useState<number>(0);
   const calibDigitIdxRef = useRef<number>(0);
@@ -217,6 +218,7 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
   useEffect(() => { pointsRef.current = points; }, [points]);
   useEffect(() => { calibDigitIdxRef.current = calibDigitIdx; }, [calibDigitIdx]);
   useEffect(() => { calibSampleCountRef.current = calibSampleCount; }, [calibSampleCount]);
+  useEffect(() => { isCalibratingRef.current = isCalibrating; }, [isCalibrating]);
 
   useEffect(() => {
     (async () => {
@@ -234,6 +236,7 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
 
   useEffect(() => {
     setIsCalibrating(calibrationMode);
+    isCalibratingRef.current = calibrationMode;
     onCalibrationChange?.(calibrationMode);
   }, [calibrationMode, onCalibrationChange]);
 
@@ -242,7 +245,7 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
   };
 
   const commitCalibrationSample = async () => {
-    if (pointsRef.current.length < 8) { console.log("calibration: too few points, ignoring sample", pointsRef.current.length); return; }
+    if (pointsRef.current.length < 4) { console.log("calibration: too few points, ignoring sample", pointsRef.current.length); return; }
     const digit = digits[calibDigitIdxRef.current] ?? "";
     if (!digit) return;
     const norm = normalize(pointsRef.current);
@@ -283,8 +286,9 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
     console.log("handwrite: schedule inactivity submit in 500ms");
 
     inactivityTimer.current = setTimeout(() => {
-      console.log("handwrite: inactivity timer fired", { isCalibrating });
-      if (isCalibrating) {
+      const calibratingNow = isCalibratingRef.current;
+      console.log("handwrite: inactivity timer fired", { calibratingNow });
+      if (calibratingNow) {
         commitCalibrationSample();
         return;
       }
@@ -293,7 +297,7 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
       let nextValue = valueRef.current;
       const pts = pointsRef.current;
       const box = boundingBox(pts);
-      const tooSmall = (box.width < 6 && box.height < 6) || pts.length < 8;
+      const tooSmall = (box.width < 4 && box.height < 4) || pts.length < 4;
       if (!tooSmall) {
         const { digit, score } = recognizeDigit(pts, templates);
         console.log("recognizeDigit:", { digit, score, pts: pts.length, box });
