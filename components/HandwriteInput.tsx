@@ -242,12 +242,12 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
   };
 
   const commitCalibrationSample = async () => {
-    if (pointsRef.current.length < 8) return;
+    if (pointsRef.current.length < 8) { console.log("calibration: too few points, ignoring sample", pointsRef.current.length); return; }
     const digit = digits[calibDigitIdxRef.current] ?? "";
     if (!digit) return;
     const norm = normalize(pointsRef.current);
     const tpl: Template = { name: digit, points: norm };
-    console.log("calibration: saving sample", { digit, sample: calibSampleCountRef.current + 1 });
+    console.log("calibration: saving sample", { digit, sample: calibSampleCountRef.current + 1, points: pointsRef.current.length });
     setUserTemplates((prev) => {
       const updated = [...prev, tpl];
       AsyncStorage.setItem(USER_TEMPLATES_KEY, JSON.stringify(updated)).catch((e) => console.log("calibration save error", e));
@@ -280,7 +280,10 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
   const schedule = () => {
     clearTimer();
 
+    console.log("handwrite: schedule inactivity submit in 500ms");
+
     inactivityTimer.current = setTimeout(() => {
+      console.log("handwrite: inactivity timer fired", { isCalibrating });
       if (isCalibrating) {
         commitCalibrationSample();
         return;
@@ -293,8 +296,8 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
       const tooSmall = (box.width < 6 && box.height < 6) || pts.length < 8;
       if (!tooSmall) {
         const { digit, score } = recognizeDigit(pts, templates);
-        console.log("recognizeDigit:", { digit, score });
-        if (digit && score > 0.25) {
+        console.log("recognizeDigit:", { digit, score, pts: pts.length, box });
+        if (digit && score > 0.15) {
           nextValue = valueRef.current + digit;
           onChangeText(nextValue);
         }
@@ -305,6 +308,7 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
 
       if (nextValue.length > prevLen) {
         setTimeout(() => {
+          console.log("handwrite: calling onSubmit()");
           onSubmit();
         }, 0);
       }
@@ -323,6 +327,7 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
           console.log("handwrite: start detecting input");
         }
         const { locationX, locationY } = evt.nativeEvent;
+        console.log("handwrite: grant", { x: locationX, y: locationY });
         const p: Point = { x: locationX, y: locationY };
         setPoints((prev) => [...prev, p]);
         setPaths((prev) => [...prev, `M${locationX},${locationY}`]);
@@ -330,6 +335,9 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
       },
       onPanResponderMove: (evt) => {
         const { locationX, locationY } = evt.nativeEvent;
+        if (pointsRef.current.length % 10 === 0) {
+          console.log("handwrite: move", { x: locationX, y: locationY });
+        }
         const p: Point = { x: locationX, y: locationY };
         setPoints((prev) => [...prev, p]);
         setPaths((prev) => {
@@ -341,9 +349,11 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
         schedule();
       },
       onPanResponderRelease: () => {
+        console.log("handwrite: release");
         schedule();
       },
       onPanResponderTerminate: () => {
+        console.log("handwrite: terminate");
         schedule();
       },
     })
