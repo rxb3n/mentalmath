@@ -1,11 +1,23 @@
-import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useState, useCallback } from "react";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import HandwriteInput from "@/components/HandwriteInput";
 
 export default function CalibrationScreen() {
   const insets = useSafeAreaInsets();
   const [val, setVal] = useState<string>("");
+
+  const handleCalibrationComplete = useCallback(() => {
+    console.log("calibration screen: completed, navigating to home");
+    try {
+      Alert.alert("Calibration complete", "Your samples were saved.", [
+        { text: "OK", onPress: () => router.replace("/") },
+      ]);
+    } catch {
+      router.replace("/");
+    }
+  }, []);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -18,10 +30,18 @@ export default function CalibrationScreen() {
         <HandwriteInput
           size={320}
           value={val}
-          onChangeText={setVal}
-          onSubmit={() => setVal("")}
+          onChangeText={(t) => {
+            console.log("calibration screen: value updated", t);
+            setVal(t);
+          }}
+          onSubmit={() => {
+            console.log("calibration screen: submit called");
+            setVal("");
+          }}
           calibrationMode
           renderCalibrationOverlay
+          onCalibrationComplete={handleCalibrationComplete}
+          onCalibrationChange={(b) => console.log("calibration screen: isCalibrating:", b)}
         />
       </View>
 

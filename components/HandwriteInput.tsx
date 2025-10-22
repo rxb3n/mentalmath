@@ -9,6 +9,7 @@ interface Props {
   onChangeText: (text: string) => void;
   onSubmit: () => void;
   onCalibrationChange?: (isCalibrating: boolean) => void;
+  onCalibrationComplete?: () => void;
   onFirstInput?: () => void;
   renderCalibrationOverlay?: boolean;
   calibrationMode?: boolean;
@@ -196,7 +197,7 @@ function recognizeDigit(rawPoints: Point[], templates: Template[]): { digit: str
   return { digit: best, score: bestScore };
 }
 
-export default function HandwriteInput({ size, value, onChangeText, onSubmit, onCalibrationChange, onFirstInput, renderCalibrationOverlay = true, calibrationMode = false }: Props) {
+export default function HandwriteInput({ size, value, onChangeText, onSubmit, onCalibrationChange, onCalibrationComplete, onFirstInput, renderCalibrationOverlay = true, calibrationMode = false }: Props) {
   const [paths, setPaths] = useState<string[]>([]);
   const [points, setPoints] = useState<Point[]>([]);
   const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -269,6 +270,11 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
         console.log("calibration: completed");
         setIsCalibrating(false);
         onCalibrationChange?.(false);
+        try {
+          onCalibrationComplete?.();
+        } catch (e) {
+          console.log("calibration: onCalibrationComplete error", e);
+        }
       } else {
         console.log("calibration: next digit", digits[nextDigit]);
         setCalibDigitIdx(nextDigit);
@@ -301,7 +307,7 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
       if (!tooSmall) {
         const { digit, score } = recognizeDigit(pts, templates);
         console.log("recognizeDigit:", { digit, score, pts: pts.length, box });
-        if (digit && score > 0.15) {
+        if (digit && score > 0.05) {
           nextValue = valueRef.current + digit;
           onChangeText(nextValue);
         }
