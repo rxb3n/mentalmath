@@ -286,6 +286,7 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
         return;
       }
 
+      const prevLen = valueRef.current.length;
       let nextValue = valueRef.current;
       const pts = pointsRef.current;
       const box = boundingBox(pts);
@@ -293,7 +294,7 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
       if (!tooSmall) {
         const { digit, score } = recognizeDigit(pts, templates);
         console.log("recognizeDigit:", { digit, score });
-        if (digit && score > 0.35) {
+        if (digit && score > 0.25) {
           nextValue = valueRef.current + digit;
           onChangeText(nextValue);
         }
@@ -302,7 +303,7 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
       setPaths([]);
       setPoints([]);
 
-      if (nextValue.length > 0) {
+      if (nextValue.length > prevLen) {
         setTimeout(() => {
           onSubmit();
         }, 0);
