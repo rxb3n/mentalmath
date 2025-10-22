@@ -129,7 +129,14 @@ function normalize(points: Point[]): Point[] {
   let pts = points.map((p) => ({ x: p.x, y: p.y }));
   const box = boundingBox(pts);
   if (box.width < 5 && box.height < 5) return pts;
-  pts = smooth(pts, 3);
+  // remove exact duplicates
+  const dedup: Point[] = [];
+  for (let i = 0; i < pts.length; i++) {
+    const prev = dedup[dedup.length - 1];
+    const cur = pts[i];
+    if (!prev || prev.x !== cur.x || prev.y !== cur.y) dedup.push(cur);
+  }
+  pts = smooth(dedup, 3);
   pts = resample(pts, 64);
   const angle = indicativeAngle(pts);
   pts = rotateBy(pts, -angle);
@@ -307,7 +314,7 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
       if (!tooSmall) {
         const { digit, score } = recognizeDigit(pts, templates);
         console.log("recognizeDigit:", { digit, score, pts: pts.length, box });
-        if (digit && score > 0.05) {
+        if (digit && score > 0.15) {
           nextValue = valueRef.current + digit;
           onChangeText(nextValue);
         }
