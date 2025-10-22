@@ -112,12 +112,6 @@ function normalize(points: Point[]): Point[] {
   return pts;
 }
 
-function pointsToPath(points: Point[]): string {
-  if (points.length === 0) return "";
-  const [first, ...rest] = points;
-  return `M${first.x},${first.y}` + rest.map((p) => ` L${p.x},${p.y}`).join("");
-}
-
 function buildDigitTemplates(): Template[] {
   const mk = (name: string, pts: Point[]): Template => ({ name, points: normalize(pts) });
   const line = (x1: number, y1: number, x2: number, y2: number, steps = 20): Point[] => {
@@ -180,8 +174,7 @@ function recognizeDigit(rawPoints: Point[], templates: Template[]): { digit: str
 export default function HandwriteInput({ size, value, onChangeText, onSubmit, onCalibrationChange, onFirstInput, renderCalibrationOverlay = true, calibrationMode = false }: Props) {
   const [paths, setPaths] = useState<string[]>([]);
   const [points, setPoints] = useState<Point[]>([]);
-  const recognizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const submitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [userTemplates, setUserTemplates] = useState<Template[]>([]);
   const [isCalibrating, setIsCalibrating] = useState<boolean>(false);
   const [calibDigitIdx, setCalibDigitIdx] = useState<number>(0);
@@ -190,6 +183,11 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
 
   const baseTemplates = useMemo(() => buildDigitTemplates(), []);
   const templates = useMemo(() => [...baseTemplates, ...userTemplates], [baseTemplates, userTemplates]);
+
+  const valueRef = useRef<string>(value);
+  const pointsRef = useRef<Point[]>(points);
+  useEffect(() => { valueRef.current = value; }, [value]);
+  useEffect(() => { pointsRef.current = points; }, [points]);
 
   useEffect(() => {
     (async () => {
@@ -210,16 +208,15 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
     onCalibrationChange?.(calibrationMode);
   }, [calibrationMode, onCalibrationChange]);
 
-  const clearTimers = () => {
-    if (recognizeTimer.current) clearTimeout(recognizeTimer.current);
-    if (submitTimer.current) clearTimeout(submitTimer.current);
+  const clearTimer = () => {
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
   };
 
   const commitCalibrationSample = async () => {
-    if (points.length < 8) return;
+    if (pointsRef.current.length < 8) return;
     const digit = digits[calibDigitIdx] ?? "";
     if (!digit) return;
-    const norm = normalize(points);
+    const norm = normalize(pointsRef.current);
     const tpl: Template = { name: digit, points: norm };
     setUserTemplates((prev) => [...prev, tpl]);
     setPaths([]);
@@ -247,39 +244,31 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
   };
 
   const schedule = () => {
-    clearTimers();
+    clearTimer();
 
-    if (isCalibrating) {
-      submitTimer.current = setTimeout(() => {
+    inactivityTimer.current = setTimeout(() => {
+      if (isCalibrating) {
         commitCalibrationSample();
-      }, 500);
-      return;
-    }
-
-    recognizeTimer.current = setTimeout(() => {
-      if (points.length >= 8) {
-        const { digit, score } = recognizeDigit(points, templates);
-        if (digit && score > 0.6) {
-          onChangeText(value + digit);
-          setPaths([]);
-          setPoints([]);
-        }
+        return;
       }
-    }, 250);
 
-    submitTimer.current = setTimeout(() => {
-      let nextValue = value;
-      if (points.length >= 8) {
-        const { digit, score } = recognizeDigit(points, templates);
+      let nextValue = valueRef.current;
+      const pts = pointsRef.current;
+      if (pts.length >= 8) {
+        const { digit, score } = recognizeDigit(pts, templates);
         if (digit && score > 0.6) {
-          nextValue = value + digit;
+          nextValue = valueRef.current + digit;
           onChangeText(nextValue);
         }
       }
+
+      setPaths([]);
+      setPoints([]);
+
       if (nextValue.length > 0) {
-        setPaths([]);
-        setPoints([]);
-        onSubmit();
+        setTimeout(() => {
+          onSubmit();
+        }, 0);
       }
     }, 500);
   };
@@ -324,7 +313,7 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
 
   useEffect(() => {
     return () => {
-      clearTimers();
+      clearTimer();
     };
   }, []);
 
