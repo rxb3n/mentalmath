@@ -56,7 +56,6 @@ export default function GameScreen() {
   const answerRef = useRef<string>("");
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [canvasKey, setCanvasKey] = useState<number>(0);
-  const [isCalibrating, setIsCalibrating] = useState<boolean>(false);
   const [hasStarted, setHasStarted] = useState<boolean>(false);
 
   const activeProblem = problems[0];
@@ -70,7 +69,7 @@ export default function GameScreen() {
   }, []);
 
   useEffect(() => {
-    if (gameOver || isCalibrating || !hasStarted) return;
+    if (gameOver || !hasStarted) return;
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -83,7 +82,7 @@ export default function GameScreen() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [gameOver, isCalibrating, hasStarted, handleGameOver]);
+  }, [gameOver, hasStarted, handleGameOver]);
 
   useEffect(() => {
     if (!gameOver) return;
@@ -276,9 +275,9 @@ export default function GameScreen() {
               answerRef.current = t;
             }}
             onSubmit={submitAnswer}
-            onCalibrationChange={(v) => setIsCalibrating(v)}
             onFirstInput={() => setHasStarted(true)}
             renderCalibrationOverlay={false}
+            calibrationMode={false}
           />
           {isProcessing && (
             <View style={styles.processingOverlay}>
@@ -291,14 +290,6 @@ export default function GameScreen() {
 
       </View>
 
-      {isCalibrating && (
-        <View style={styles.fullscreenOverlay} pointerEvents="auto" testID="calibration-fullscreen">
-          <View style={styles.fullscreenBox}>
-            <Text style={styles.calibTitle}>Calibration</Text>
-            <Text style={styles.calibHint}>Draw the prompted digits on the pad to calibrate your handwriting. This runs once.</Text>
-          </View>
-        </View>
-      )}
     </View>
   );
 }
@@ -388,37 +379,7 @@ const styles = StyleSheet.create({
     color: "#666",
   },
 
-  fullscreenOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(245,245,240,0.96)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-  fullscreenBox: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    padding: 16,
-    maxWidth: 340,
-    alignItems: "center",
-    gap: 8,
-  },
-  calibTitle: {
-    fontSize: 18,
-    color: "#333",
-    fontWeight: "700" as const,
-  },
-  calibHint: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center" as const,
-  },
+
 
   gameOverContainer: {
     flex: 1,

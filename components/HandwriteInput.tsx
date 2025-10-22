@@ -11,6 +11,7 @@ interface Props {
   onCalibrationChange?: (isCalibrating: boolean) => void;
   onFirstInput?: () => void;
   renderCalibrationOverlay?: boolean;
+  calibrationMode?: boolean;
 }
 
 type Point = { x: number; y: number };
@@ -176,7 +177,7 @@ function recognizeDigit(rawPoints: Point[], templates: Template[]): { digit: str
   return { digit: best, score: bestScore };
 }
 
-export default function HandwriteInput({ size, value, onChangeText, onSubmit, onCalibrationChange, onFirstInput, renderCalibrationOverlay = true }: Props) {
+export default function HandwriteInput({ size, value, onChangeText, onSubmit, onCalibrationChange, onFirstInput, renderCalibrationOverlay = true, calibrationMode = false }: Props) {
   const [paths, setPaths] = useState<string[]>([]);
   const [points, setPoints] = useState<Point[]>([]);
   const recognizeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -197,16 +198,17 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
         if (stored) {
           const parsed = JSON.parse(stored) as Template[];
           if (Array.isArray(parsed)) setUserTemplates(parsed);
-          setIsCalibrating(false);
-        } else {
-          setIsCalibrating(true);
         }
       } catch (e) {
         console.log("calibration load error", e);
-        setIsCalibrating(true);
       }
     })();
   }, []);
+
+  useEffect(() => {
+    setIsCalibrating(calibrationMode);
+    onCalibrationChange?.(calibrationMode);
+  }, [calibrationMode, onCalibrationChange]);
 
   const clearTimers = () => {
     if (recognizeTimer.current) clearTimeout(recognizeTimer.current);
@@ -331,8 +333,8 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
       await AsyncStorage.removeItem(USER_TEMPLATES_KEY);
     } catch {}
     setUserTemplates([]);
-    setIsCalibrating(true);
-    onCalibrationChange?.(true);
+    setIsCalibrating(calibrationMode);
+    onCalibrationChange?.(calibrationMode);
     setCalibDigitIdx(0);
     setCalibSampleCount(0);
     setPaths([]);
@@ -367,20 +369,22 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
         <Text style={styles.answerValue} testID="answer-value">{value || "_"}</Text>
       </View>
 
-      <View style={styles.row}>
-        <TouchableOpacity onPress={resetCalibration} style={styles.linkBtn} testID="reset-calibration">
-          <Text style={styles.linkText}>Recalibrate</Text>
-        </TouchableOpacity>
-        {!isCalibrating && (
-          <TouchableOpacity
-            onPress={() => setIsCalibrating(true)}
-            style={styles.linkBtn}
-            testID="start-calibration"
-          >
-            <Text style={styles.linkText}>Calibrate</Text>
+      {calibrationMode && (
+        <View style={styles.row}>
+          <TouchableOpacity onPress={resetCalibration} style={styles.linkBtn} testID="reset-calibration">
+            <Text style={styles.linkText}>Reset calibration</Text>
           </TouchableOpacity>
-        )}
-      </View>
+          {!isCalibrating && (
+            <TouchableOpacity
+              onPress={() => setIsCalibrating(true)}
+              style={styles.linkBtn}
+              testID="start-calibration"
+            >
+              <Text style={styles.linkText}>Start calibration</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </View>
   );
 }

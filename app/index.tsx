@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { Brain, Trophy } from "lucide-react-native";
+import { Brain, Settings, Trophy } from "lucide-react-native";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -24,12 +24,21 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.leaderboardButton}
+          style={styles.secondaryButton}
+          onPress={() => router.push("/calibration")}
+          activeOpacity={0.8}
+        >
+          <Settings size={22} color="#666" />
+          <Text style={styles.secondaryButtonText}>Calibration</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.secondaryButton}
           onPress={() => router.push("/leaderboard")}
           activeOpacity={0.8}
         >
-          <Trophy size={24} color="#666" />
-          <Text style={styles.leaderboardButtonText}>Leaderboard</Text>
+          <Trophy size={22} color="#666" />
+          <Text style={styles.secondaryButtonText}>Leaderboard</Text>
         </TouchableOpacity>
       </View>
 
@@ -82,7 +91,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     letterSpacing: 0.5,
   },
-  leaderboardButton: {
+  secondaryButton: {
     backgroundColor: "#fff",
     paddingVertical: 16,
     paddingHorizontal: 40,
@@ -94,7 +103,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e0e0e0",
   },
-  leaderboardButtonText: {
+  secondaryButtonText: {
     fontSize: 18,
     fontWeight: "500" as const,
     color: "#666",

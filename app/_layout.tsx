@@ -22,6 +22,14 @@ function RootLayoutNav() {
           headerTintColor: "#333"
         }} 
       />
+      <Stack.Screen 
+        name="calibration" 
+        options={{ 
+          title: "Calibration",
+          headerStyle: { backgroundColor: "#f5f5f0" },
+          headerTintColor: "#333"
+        }} 
+      />
     </Stack>
   );
 }
