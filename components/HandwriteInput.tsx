@@ -21,13 +21,18 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
   const canvasRef = useRef<View>(null);
   const valueRef = useRef<string>(value);
   const hasPathsRef = useRef<boolean>(false);
+  const isMountedRef = useRef<boolean>(false);
 
   useEffect(() => { valueRef.current = value; }, [value]);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    
     if (Platform.OS !== "web") {
       console.log("TensorFlow.js recognition only works on web");
-      setModelError("Recognition only available on web");
+      if (isMountedRef.current) {
+        setModelError("Recognition only available on web");
+      }
       return;
     }
 
@@ -35,12 +40,20 @@ export default function HandwriteInput({ size, value, onChangeText, onSubmit, on
     initializeModel()
       .then(() => {
         console.log("Model initialized successfully");
-        setModelReady(true);
+        if (isMountedRef.current) {
+          setModelReady(true);
+        }
       })
       .catch((error) => {
         console.error("Model initialization failed:", error);
-        setModelError("Failed to load recognition model");
+        if (isMountedRef.current) {
+          setModelError("Failed to load recognition model");
+        }
       });
+    
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const clearTimer = () => {

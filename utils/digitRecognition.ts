@@ -1,12 +1,21 @@
-import * as tf from "@tensorflow/tfjs";
-import "@tensorflow/tfjs-react-native";
+import { Platform } from "react-native";
 import { captureRef } from "react-native-view-shot";
 
+let tf: any = null;
+
+if (Platform.OS === "web") {
+  tf = require("@tensorflow/tfjs");
+}
+
 let isModelReady = false;
-let model: tf.LayersModel | null = null;
+let model: any = null;
 
 export async function initializeModel(): Promise<void> {
   if (isModelReady) return;
+  
+  if (Platform.OS !== "web" || !tf) {
+    throw new Error("TensorFlow.js is only supported on web");
+  }
   
   console.log("Initializing TensorFlow.js...");
   await tf.ready();
@@ -29,7 +38,7 @@ export function isModelInitialized(): boolean {
   return isModelReady;
 }
 
-async function preprocessImage(imageUri: string): Promise<tf.Tensor> {
+async function preprocessImage(imageUri: string): Promise<any> {
   console.log("Preprocessing image:", imageUri);
   
   const response = await fetch(imageUri);
@@ -82,7 +91,7 @@ export async function recognizeDigitFromCanvas(
     const tensor = await preprocessImage(uri);
     
     console.log("Running prediction...");
-    const prediction = model.predict(tensor) as tf.Tensor;
+    const prediction = model.predict(tensor) as any;
     const probabilities = await prediction.data();
     
     let maxProb = -1;
