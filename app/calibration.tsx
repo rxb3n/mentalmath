@@ -11,8 +11,8 @@ export default function CalibrationScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Test Recognition</Text>
-        <Text style={styles.subtitle}>Using pre-trained MNIST model (Web only)</Text>
+        <Text style={styles.title}>Test Input</Text>
+        <Text style={styles.subtitle}>Test your handwriting keyboard input</Text>
       </View>
 
       <View style={styles.center}>

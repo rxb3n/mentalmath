@@ -43,7 +43,7 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.instructions}>
-        <Text style={styles.instructionText}>Draw your answers with your finger</Text>
+        <Text style={styles.instructionText}>Use handwriting keyboard to write answers</Text>
         <Text style={styles.instructionText}>30 seconds to start • +2s per correct answer</Text>
       </View>
     </View>

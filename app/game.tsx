@@ -263,7 +263,7 @@ export default function GameScreen() {
       </View>
 
       <View style={styles.canvasContainer}>
-        <Text style={styles.canvasLabel}>Draw digits one-by-one. Pause briefly to capture each digit.</Text>
+        <Text style={styles.canvasLabel}>Type your answer using handwriting keyboard</Text>
         <View style={styles.canvasWrapper}>
           <HandwriteInput
             key={canvasKey}
@@ -276,8 +276,6 @@ export default function GameScreen() {
             }}
             onSubmit={submitAnswer}
             onFirstInput={() => setHasStarted(true)}
-            renderCalibrationOverlay={false}
-            calibrationMode={false}
           />
           {isProcessing && (
             <View style={styles.processingOverlay}>
@@ -287,7 +285,16 @@ export default function GameScreen() {
           )}
         </View>
 
-
+        <TouchableOpacity
+          style={styles.submitButton}
+          onPress={submitAnswer}
+          disabled={!answerBuffer || isProcessing}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.submitButtonText, (!answerBuffer || isProcessing) && styles.disabledText]}>
+            Submit Answer
+          </Text>
+        </TouchableOpacity>
       </View>
 
     </View>
@@ -378,9 +385,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
   },
-
-
-
+  submitButton: {
+    backgroundColor: "#333",
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    marginTop: 20,
+  },
+  submitButtonText: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: "#fff",
+    textAlign: "center",
+  },
+  disabledText: {
+    opacity: 0.4,
+  },
   gameOverContainer: {
     flex: 1,
     alignItems: "center",
