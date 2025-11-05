@@ -29,7 +29,7 @@ export default function HomeScreen() {
           activeOpacity={0.8}
         >
           <Settings size={22} color="#666" />
-          <Text style={styles.secondaryButtonText}>Calibration</Text>
+          <Text style={styles.secondaryButtonText}>Test Recognition</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
