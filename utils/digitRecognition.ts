@@ -1,5 +1,11 @@
 import { Platform } from "react-native";
-import { captureRef } from "react-native-view-shot";
+
+let captureRef: any = null;
+
+if (Platform.OS === "web") {
+  const viewShot = require("react-native-view-shot");
+  captureRef = viewShot.captureRef;
+}
 
 let tf: any = null;
 
